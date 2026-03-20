@@ -187,6 +187,11 @@ body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);display:flex;j
         <input class="inp" id="in-email" type="email" placeholder="Email"/>
         <input class="inp" id="in-pass" type="password" placeholder="Password"/>
         <button class="btn-main" onclick="doLogin()">Sign In →</button>
+        <div style="text-align:center;margin-bottom:10px;">
+          <button onclick="forgotPassword()" style="background:none;border:none;color:var(--orange);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;">Forgot Password? / पासवर्ड भूल गए?</button>
+        </div>
+        <div id="forgot-msg" style="display:none;background:var(--greenbg);border:1px solid #86efac;color:var(--green);font-size:12px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:10px;text-align:center;">✅ Reset email sent! Check your inbox.</div>
+        <div id="forgot-err" style="display:none;background:var(--redbg);border:1px solid #fecaca;color:var(--red);font-size:12px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:10px;text-align:center;"></div>
       </div>
       <div id="form-up" style="display:none;">
         <input class="inp" id="up-name" type="text" placeholder="Your Name / आपका नाम"/>
@@ -339,7 +344,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);display:flex;j
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signInWithPopup,GoogleAuthProvider,signOut,onAuthStateChanged,updateProfile}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signInWithPopup,GoogleAuthProvider,signOut,onAuthStateChanged,updateProfile,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,collection,addDoc,getDocs,doc,getDoc,setDoc,updateDoc,increment,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const cfg={apiKey:"AIzaSyAki-LWViroHQmBU6AnmIyCmo9sXSGo8YA",authDomain:"notesbazaar-d6e43.firebaseapp.com",projectId:"notesbazaar-d6e43",storageBucket:"notesbazaar-d6e43.firebasestorage.app",messagingSenderId:"890316817829",appId:"1:890316817829:web:aa3937767f91201f98144c"};
@@ -366,6 +371,23 @@ window.doLogin=async function(){
   loader(true);
   try{await signInWithEmailAndPassword(auth,e,p);}
   catch(err){loader(false);showErr(err.message);}
+};
+
+window.forgotPassword=async function(){
+  const e=document.getElementById('in-email').value.trim();
+  const msg=document.getElementById('forgot-msg');
+  const err=document.getElementById('forgot-err');
+  msg.style.display='none';err.style.display='none';
+  if(!e){err.textContent='Enter your email above first / पहले email डालें';err.style.display='block';return;}
+  try{
+    await sendPasswordResetEmail(auth,e);
+    msg.style.display='block';
+    setTimeout(()=>msg.style.display='none',5000);
+  }catch(e){
+    err.textContent='Email not found. Check spelling / Email नहीं मिला';
+    err.style.display='block';
+    setTimeout(()=>err.style.display='none',4000);
+  }
 };
 
 window.doRegister=async function(){
