@@ -494,37 +494,55 @@ function noteCard(n){
   </div>`;
 }
 
-window.buyNote=function(id,title,price,uploaderEmail,e){
+const BACKEND='https://notesbazaar-backend.onrender.com';
+
+window.buyNote=async function(id,title,price,uploaderEmail,e){
   e&&e.stopPropagation();
   if(!cu){alert('Please login to buy');return;}
-  const options={
-    key:RZP_KEY,
-    amount:price*100,
-    currency:'INR',
-    name:'NotesBazaar',
-    description:title,
-    image:'https://notesbazzar.vercel.app/favicon.ico',
-    handler:async function(response){
-      try{
-        await updateDoc(doc(db,'users',cu.uid),{purchasedNotes:arrayUnion(id)});
-        const n=allNotes.find(n=>n.id===id);
-        if(n){
-          await updateDoc(doc(db,'notes',id),{downloads:increment(1)});
-          const uploaderEarning=Math.floor(price*0.8);
-          if(n.uid){await updateDoc(doc(db,'users',n.uid),{earnings:increment(uploaderEarning)});}
-        }
-        purchasedIds.push(id);
-        alert(`✅ Payment successful! Note unlocked!\nPayment ID: ${response.razorpay_payment_id}`);
-        renderNotes(activeFilter==='all'?allNotes:allNotes.filter(filterFn));
-        renderMyNotes();
-      }catch(err){console.error(err);}
-    },
-    prefill:{email:cu.email,name:cu.displayName||'Student'},
-    theme:{color:'#e05c00'},
-    modal:{ondismiss:function(){console.log('Payment cancelled');}}
-  };
-  const rzp=new window.Razorpay(options);
-  rzp.open();
+  try{
+    const orderRes=await fetch(`${BACKEND}/create-order`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({noteId:id,amount:price,userId:cu.uid})
+    });
+    const orderData=await orderRes.json();
+    if(!orderData.orderId){alert('Could not create order. Try again.');return;}
+    const options={
+      key:orderData.key,
+      amount:orderData.amount,
+      currency:orderData.currency,
+      order_id:orderData.orderId,
+      name:'NotesBazaar',
+      description:title,
+      prefill:{email:cu.email||'',name:cu.displayName||'Student'},
+      theme:{color:'#e05c00'},
+      handler:async function(response){
+        try{
+          const verifyRes=await fetch(`${BACKEND}/verify-payment`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              razorpay_order_id:response.razorpay_order_id,
+              razorpay_payment_id:response.razorpay_payment_id,
+              razorpay_signature:response.razorpay_signature,
+              noteId:id,userId:cu.uid
+            })
+          });
+          const verifyData=await verifyRes.json();
+          if(verifyData.success){
+            purchasedIds.push(id);
+            alert('✅ Payment verified! Note unlocked!');
+            renderNotes(activeFilter==='all'?allNotes:allNotes.filter(filterFn));
+            renderMyNotes();
+            if(verifyData.link)window.open(verifyData.link,'_blank');
+          }else{alert('Payment verification failed. Contact support.');}
+        }catch(err){alert('Verification error: '+err.message);}
+      },
+      modal:{ondismiss:function(){console.log('Payment cancelled');}}
+    };
+    const rzp=new window.Razorpay(options);
+    rzp.open();
+  }catch(err){alert('Error: '+err.message);}
 };
 
 function filterFn(n){
